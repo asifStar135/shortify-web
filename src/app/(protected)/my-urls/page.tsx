@@ -55,13 +55,13 @@ export default function MyUrlsPage() {
         url?.longUrl?.toLowerCase()?.includes(search.toLowerCase());
 
       const matchesStatus =
-        status === "All" || url?.active == (status == "active");
+        status === "All" || url?.active == (status == "Active");
 
       return matchesSearch && matchesStatus;
     });
 
     return [...result].sort((a, b) => {
-      if (sort === "visits") return b?.clickCount - a?.clickCount;
+      if (sort === "visits") return b?.visit - a?.visit;
       if (sort === "oldest") return a?.id - b?.id;
 
       if (sort === "name") return a?.title?.localeCompare(b?.title);
@@ -106,7 +106,7 @@ export default function MyUrlsPage() {
 
   const activeCount = urlItems.filter((url) => url?.active === true).length;
 
-  const totalVisits = urlItems.reduce((sum, url) => sum + url?.clickCount, 0);
+  const totalVisits = urlItems.reduce((sum, url) => sum + url?.visit, 0);
 
   return (
     <main className="min-h-screen bg-[#f8f0df] text-[#111111]">
@@ -119,7 +119,7 @@ export default function MyUrlsPage() {
 
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
+              <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
                 My URLs
               </h1>
 
@@ -248,7 +248,7 @@ export default function MyUrlsPage() {
                             href={`/my-urls/${url.id}`}
                             className="font-medium text-[#735b25] underline decoration-[#cdbb8f] underline-offset-4 transition-colors hover:text-[#3c2d11]"
                           >
-                            {url.title}
+                            {url.title ?? "--"}
                           </Link>
                         </td>
 
@@ -301,17 +301,17 @@ export default function MyUrlsPage() {
 
                         {/* Visits */}
                         <td className="px-5 py-5 text-sm font-medium">
-                          {url?.clickCount?.toLocaleString()}
+                          {url?.visit?.toLocaleString()}
                         </td>
 
                         {/* Created */}
                         <td className="px-5 py-5 text-sm text-gray-500">
-                          {getDate(url.created_at)}
+                          {getDate(url.createdAt)}
                         </td>
 
                         {/* Expires */}
                         <td className="px-5 py-5 text-sm text-gray-500">
-                          {getDate(url.expires_at)}
+                          {getDate(url.expiresAt)}
                         </td>
                       </tr>
                     ))}

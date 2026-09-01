@@ -1,4 +1,4 @@
-import CreateUrlForm from "@/components/Forms/UrlForm";
+import CreateUrlForm from "@/components/Forms/CreateUrlForm";
 
 export default function ShortenPage() {
   return (

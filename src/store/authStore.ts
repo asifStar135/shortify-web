@@ -1,25 +1,34 @@
 import { create } from "zustand";
 
 export interface User {
-  user_id: number;
+  userId: number;
   username: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+  totalUrls: number;
+  totalVisits: number;
+  activeUrls: number;
   // add other profile fields
 }
 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  loadingData: boolean;
   isAuthenticated: boolean;
 
   setUser: (user: User) => void;
   clearUser: () => void;
   setLoading: (loading: boolean) => void;
+  setLoadingData: (loading: boolean) => void;
   setIsAuthenticated: (authenticated: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
+  loadingData: true,
   isAuthenticated: false,
 
   setUser: (user) => set({ user, loading: false }),
@@ -31,6 +40,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setLoading: (loading) => {
     set({ loading });
+  },
+  setLoadingData: (loadingData) => {
+    set({ loadingData });
   },
   setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
 }));

@@ -1,3 +1,4 @@
+import { editActions } from "../types";
 import { apiClient } from "./client";
 
 export default {
@@ -22,11 +23,22 @@ export default {
     });
   },
   fetchUrlById: async (url_id: number) => {
-    console.log("Api calling");
     return apiClient<any>("/api/url/" + url_id, {
       method: "GET",
     });
   },
+
+  editUrlData: async (
+    urlId?: number,
+    editAction?: editActions,
+    dataToUpdate?: any,
+  ) => {
+    return apiClient<any>("/api/url/" + urlId, {
+      method: "PUT",
+      data: { editAction: editAction, ...dataToUpdate },
+    });
+  },
+
   disableUrl: async (shortcode: string) => {
     return apiClient("/api/url/disable", {
       method: "PUT",
@@ -35,6 +47,7 @@ export default {
       },
     });
   },
+
   enableUrl: async (shortcode: string) => {
     return apiClient("/api/url/enable", {
       method: "PUT",
@@ -43,12 +56,10 @@ export default {
       },
     });
   },
-  deleteUrl: async (shortcode: string) => {
-    return apiClient("/api/url/delete", {
+
+  deleteUrl: async (urlId?: number) => {
+    return apiClient("/api/url/" + urlId, {
       method: "DELETE",
-      data: {
-        shortcode,
-      },
     });
   },
 };

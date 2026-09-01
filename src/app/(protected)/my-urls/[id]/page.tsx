@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Check,
@@ -14,42 +14,154 @@ import {
   Monitor,
   QrCode,
   ExternalLinkIcon,
+  PenLine,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import UrlApis from "@/lib/api/UrlApis";
-import { useParams } from "next/navigation";
+import { redirect, useParams } from "next/navigation";
+import { editActions, UrlItem } from "@/lib/types";
+import { getDate, validateUrl } from "@/lib/api/helpers";
+import { toast } from "sonner";
+import ConfirmDialog from "@/components/ui/shared/ConfirmDialog";
 import { useAuthStore } from "@/store/authStore";
-import { UrlItem } from "@/lib/types";
 
 export default function ShortUrlDetailsPage() {
+  const { loadingData, setLoadingData } = useAuthStore();
   const [copied, setCopied] = useState(false);
-  const [active, setActive] = useState(true);
   const [urlDetails, setUrlDetails] = useState<UrlItem>();
+
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingLongUrl, setEditingLongUrl] = useState(false);
+
+  const [titleDraft, setTitleDraft] = useState<string>("");
+  const [longUrlDraft, setLongUrlDraft] = useState<string>("");
+
+  const [openDisableModal, setOpenDisableModal] = useState(false);
+  const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const params = useParams();
-  const { setLoading } = useAuthStore();
 
   const fetchUrlDetails = async () => {
-    // setLoading(true);
     try {
+      setLoadingData(true);
       const details = await UrlApis.fetchUrlById(Number(params.id));
       setUrlDetails(details);
     } catch (error) {
       console.log(error);
     } finally {
-      // setLoading(false);
+      setLoadingData(false);
     }
   };
 
+  const handleSaveName = async () => {
+    if (!titleDraft?.trim()) {
+      toast.warning("Please enter a valid title");
+      return;
+    }
+
+    const dataToUpdate = {
+      title: titleDraft,
+    };
+    setLoadingData(true);
+    toast.promise(
+      UrlApis.editUrlData(urlDetails?.id || 0, editActions.title, dataToUpdate),
+      {
+        success: () => {
+          fetchUrlDetails();
+          return "Saving done";
+        },
+        error: "Save failed",
+        loading: "Loading in progress",
+        finally: () => setLoadingData(false),
+      },
+    );
+
+    setEditingTitle(false);
+  };
+
+  const cancelNameEdit = () => {
+    setEditingTitle(false);
+  };
+
+  const saveLongUrl = () => {
+    console.log(longUrlDraft);
+    if (!validateUrl(longUrlDraft)) {
+      toast.warning("Please enter a valid url");
+      return;
+    }
+
+    const dataToUpdate = {
+      longUrl: longUrlDraft,
+    };
+
+    setLoadingData(true);
+    toast.promise(
+      UrlApis.editUrlData(
+        urlDetails?.id || 0,
+        editActions.longUrl,
+        dataToUpdate,
+      ),
+      {
+        success: () => {
+          fetchUrlDetails();
+          return "Saving done";
+        },
+        error: "Save failed",
+        loading: "Loading in progress",
+        finally: () => setLoadingData(false),
+      },
+    );
+
+    setEditingLongUrl(false);
+  };
+
+  const cancelLongUrlEdit = () => {
+    setEditingLongUrl(false);
+  };
+
+  const confirmEnableDisable = async (enable: boolean) => {
+    setLoadingData(true);
+    toast.promise(
+      UrlApis.editUrlData(
+        urlDetails?.id,
+        enable ? editActions.enable : editActions.disable,
+        {},
+      ),
+      {
+        loading: "Update in progress",
+        success: () => {
+          fetchUrlDetails();
+          return "Data saved";
+        },
+        error: "Saving failed",
+        finally: () => setLoadingData(false),
+      },
+    );
+    setOpenDisableModal(false);
+  };
+
+  const confirmDelete = () => {
+    setLoadingData(true);
+
+    // TODO: call delete API
+    toast.promise(UrlApis.deleteUrl(urlDetails?.id), {
+      loading: "Delete in progress",
+      success: () => {
+        redirect("/my-urls");
+        return "URL deleted";
+      },
+      error: "Saving failed",
+      finally: () => setLoadingData(false),
+    });
+    setOpenDeleteModal(false);
+  };
+
   // Static data for now
-  const shortUrl =
-    process?.env?.NEXT_PUBLIC_CLIENT_URL || "" + urlDetails?.shortCode;
-  const uniqueVisits = 873;
-  const todayVisits = 42;
+  const shortUrl = useMemo(() => {
+    return `${process.env.NEXT_PUBLIC_CLIENT_URL ?? ""}${urlDetails?.shortCode ?? ""}`;
+  }, [urlDetails, process.env.NEXT_PUBLIC_CLIENT_URL]);
 
   const handleCopy = async () => {
-    // await navigator.clipboard.writeText(shortUrl);
-    const shortUrl = `${process.env.NEXT_PUBLIC_CLIENT_URL ?? ""}${urlDetails?.shortCode ?? ""}`;
-
     await navigator.clipboard.writeText(shortUrl);
     setCopied(true);
 
@@ -79,20 +191,63 @@ export default function ShortUrlDetailsPage() {
 
           {/* Title */}
           <div className="mb-12">
-            <p className="mb-3 text-sm font-medium uppercase tracking-[0.25em] text-gray-500">
+            {/* <p className="mb-3 text-sm font-medium uppercase tracking-[0.25em] text-gray-500">
               URL Details
-            </p>
+            </p> */}
+            {editingTitle ? (
+              <div className="flex items-center gap-3">
+                <input
+                  autoFocus
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") cancelNameEdit();
+                  }}
+                  className="w-full border-b border-gray-500 bg-transparent py-2 text-xl font-medium outline-none"
+                />
 
-            <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-              {urlDetails?.title ?? ""}
-            </h1>
+                <button
+                  onClick={handleSaveName}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111111] text-white hover:opacity-80"
+                  aria-label="Save name"
+                >
+                  <Check size={16} />
+                </button>
+
+                <button
+                  onClick={cancelNameEdit}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 hover:bg-white/50"
+                  aria-label="Cancel name edit"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-start gap-4 sm:flex-row">
+                <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
+                  {urlDetails?.title ?? ""}
+                </h1>
+
+                <button
+                  onClick={() => {
+                    setTitleDraft(urlDetails?.title || "");
+                    setEditingTitle(true);
+                  }}
+                  className="flex h-12 w-12 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/60 hover:text-black"
+                  aria-label="Edit name"
+                >
+                  <PenLine size={20} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* URL Overview */}
           <div className="border-y border-gray-300/70 py-10">
             {/* Short URL */}
             <div className="text-center">
-              <p className="mb-4 text-sm text-gray-500">Short URL</p>
+              <p className="mb-4 text-lg text-gray-500">Short URL</p>
 
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <span className="break-all text-2xl font-semibold tracking-tight md:text-3xl">
@@ -116,10 +271,34 @@ export default function ShortUrlDetailsPage() {
                   Open
                 </Link>
               </div>
+
+              {/* URL Actions */}
+              <div className="mt-6 flex justify-center gap-10">
+                <button
+                  onClick={() =>
+                    urlDetails?.active
+                      ? setOpenDisableModal(true)
+                      : confirmEnableDisable(true)
+                  }
+                  disabled={loadingData}
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-300 bg-white/30 px-5 py-2.5 text-sm font-medium transition-all hover:bg-white/60 hover:border-gray-500"
+                >
+                  <Power size={16} />
+                  {urlDetails?.active ? "Disable" : "Enable"}
+                </button>
+
+                <button
+                  onClick={() => setOpenDeleteModal(true)}
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600 transition-all hover:border-red-400 hover:bg-red-50"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </button>
+              </div>
             </div>
 
             {/* Long URL */}
-            <div className="mt-12">
+            {/* <div className="mt-12">
               <p className="mb-3 text-sm text-gray-500">Redirects to</p>
 
               <div className="flex items-start justify-between gap-4">
@@ -137,6 +316,68 @@ export default function ShortUrlDetailsPage() {
                   className="mt-1 shrink-0 text-gray-400"
                 />
               </div>
+            </div> */}
+
+            {/* Long URL */}
+            <div className="mt-10">
+              <p className="mb-3 text-lg text-gray-500">Redirects to</p>
+
+              {editingLongUrl ? (
+                <div className="flex items-start gap-3">
+                  <textarea
+                    autoFocus
+                    value={longUrlDraft}
+                    onChange={(e) => setLongUrlDraft(e.target.value)}
+                    rows={3}
+                    className="w-full resize-none border-b border-gray-500 bg-transparent py-2 text-lg leading-8 text-gray-700 outline-none"
+                  />
+
+                  <div className="flex shrink-0 gap-2 pt-2">
+                    <button
+                      onClick={saveLongUrl}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[#111111] text-white hover:opacity-80"
+                      aria-label="Save URL"
+                    >
+                      <Check size={16} />
+                    </button>
+
+                    <button
+                      onClick={cancelLongUrlEdit}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 hover:bg-white/50"
+                      aria-label="Cancel URL edit"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <a
+                    href={urlDetails?.longUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-lg leading-8 text-gray-700 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-black md:text-xl"
+                  >
+                    {urlDetails?.longUrl}
+                  </a>
+
+                  <button
+                    onClick={() => {
+                      setLongUrlDraft(urlDetails?.longUrl || "");
+                      setEditingLongUrl(true);
+                    }}
+                    className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/60 hover:text-black"
+                    aria-label="Edit URL"
+                  >
+                    <PenLine size={20} />
+                  </button>
+
+                  {/* <ExternalLink
+                    size={18}
+                    className="mt-1 shrink-0 text-gray-400"
+                  /> */}
+                </div>
+              )}
             </div>
 
             {/* Meta */}
@@ -144,7 +385,16 @@ export default function ShortUrlDetailsPage() {
               <span>
                 Created{" "}
                 <strong className="font-medium text-gray-700">
-                  {urlDetails?.created_at}
+                  {getDate(urlDetails?.createdAt)}
+                </strong>
+              </span>
+
+              <span className="hidden h-1 w-1 rounded-full bg-gray-400 sm:block" />
+
+              <span>
+                Expires on{" "}
+                <strong className="font-medium text-gray-700">
+                  {getDate(urlDetails?.expiresAt)}
                 </strong>
               </span>
 
@@ -164,7 +414,7 @@ export default function ShortUrlDetailsPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap items-center gap-3 border-b border-gray-300/70 py-7">
+          {/* <div className="flex flex-wrap items-center gap-3 border-b border-gray-300/70 py-7">
             <button className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/30 px-5 py-2.5 text-sm font-medium transition-all hover:border-gray-500 hover:bg-white/60">
               <Pencil size={16} />
               Edit
@@ -182,7 +432,7 @@ export default function ShortUrlDetailsPage() {
               <Trash2 size={16} />
               Delete
             </button>
-          </div>
+          </div> */}
 
           {/* Analytics */}
           <div className="pt-16">
@@ -208,20 +458,20 @@ export default function ShortUrlDetailsPage() {
             <div className="grid grid-cols-1 border border-gray-300/70 sm:grid-cols-3">
               <Stat
                 label="Total visits"
-                value={urlDetails?.clickCount?.toLocaleString() || ""}
+                value={urlDetails?.visit?.toLocaleString() || ""}
                 description="All time"
               />
 
               <Stat
                 label="Unique visitors"
-                value={uniqueVisits.toLocaleString()}
+                value={"20"}
                 description="Estimated unique users"
                 border
               />
 
               <Stat
                 label="Today's visits"
-                value={todayVisits.toLocaleString()}
+                value={"5"}
                 description="Since midnight"
                 border
               />
@@ -261,6 +511,23 @@ export default function ShortUrlDetailsPage() {
           © 2026 shortLy. Simple links, simply shared.
         </footer>
       </div>
+      <ConfirmDialog
+        open={openDisableModal}
+        onOpenChange={setOpenDisableModal}
+        title="Disable this URL ?"
+        description="Anyone using this short link will no longer be redirected to its destination."
+        confirmText="Yes Disable"
+        onConfirm={() => confirmEnableDisable(false)}
+      />
+      <ConfirmDialog
+        open={openDeleteModal}
+        onOpenChange={setOpenDeleteModal}
+        title="Delete this URL?"
+        description="This action cannot be undone. The short URL will no longer be available."
+        confirmText="Delete URL"
+        destructive
+        onConfirm={confirmDelete}
+      />
     </main>
   );
 }

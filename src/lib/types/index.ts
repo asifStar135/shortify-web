@@ -2,11 +2,18 @@ export type UrlItem = {
   id: number;
   title: string;
   shortCode: string;
-  status: "Active" | "Disabled";
-  clickCount: number;
-  created_at: string;
-  expires_at: string;
+  visit: number;
+  createdAt: string;
+  expiresAt: string;
   active: boolean;
   longUrl: string;
-  updated_at: string;
+  updatedAt: string;
 };
+
+export enum editActions {
+  enable = "ENABLE",
+  disable = "DISABLE",
+  title = "TITLE",
+  expires = "EXPIRES",
+  longUrl = "LONG_URL",
+}
