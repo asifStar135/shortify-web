@@ -311,7 +311,7 @@ export default function MyUrlsPage() {
 
                         {/* Expires */}
                         <td className="px-5 py-5 text-sm text-gray-500">
-                          {getDate(url.expiresAt)}
+                          {url?.expiresAt ? getDate(url.expiresAt) : "Never"}
                         </td>
                       </tr>
                     ))}

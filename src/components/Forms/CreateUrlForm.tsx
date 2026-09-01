@@ -1,6 +1,6 @@
 "use client";
 
-import { validateUrl } from "@/lib/api/helpers";
+import { getDate, validateUrl } from "@/lib/api/helpers";
 import UrlApis from "@/lib/api/UrlApis";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,11 @@ import { toast } from "sonner";
 export default function CreateUrlForm() {
   const [title, setTitle] = useState("Untitled url");
   const [url, setUrl] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
+  const [isNever, setIsNever] = useState(true);
+  const [expiryDate, setExpiryDate] = useState<Date>(
+    new Date(new Date().getFullYear(), 11, 31),
+  );
+
   const { setLoadingData } = useAuthStore();
   const router = useRouter();
 
@@ -31,21 +35,26 @@ export default function CreateUrlForm() {
     event.preventDefault();
     setLoadingData(true);
 
-    toast.promise(UrlApis.createShortUrl({ title, url, expiryDate }), {
-      loading: "Creating short url...",
-      success: (res) => {
-        console.log({ res });
-        if (res.id) router.push("/my-urls/" + res.id);
+    toast.promise(
+      UrlApis.createShortUrl({
+        title,
+        url,
+        expiryDate: expiryDate ? expiryDate : null,
+      }),
+      {
+        loading: "Creating short url...",
+        success: (res) => {
+          setTimeout(() => {
+            if (res.id) {
+              router.push(`/my-urls/${res.id}`);
+            }
+          }, 500);
+          return "Short url created successfully";
+        },
+        error: "Failed creating short url",
+        finally: () => setLoadingData(false),
       },
-      error: "Failed creating short url",
-      finally: () => setLoadingData(false),
-    });
-    // .then((res) => {
-    //   console.log({ res });
-    //   if (res.id) router.push("/my-urls/" + res.id);
-    // })
-    // .catch((e) => console.log({ e }))
-    // .finally(() => setLoading(false));
+    );
   };
 
   return (
@@ -101,8 +110,8 @@ export default function CreateUrlForm() {
               type="radio"
               name="expiryOption"
               value="never"
-              checked={expiryDate === ""}
-              onChange={() => setExpiryDate("")}
+              checked={isNever}
+              onChange={() => setIsNever(true)}
               className="h-4 w-4 accent-[#3c2d11]"
             />
 
@@ -121,13 +130,9 @@ export default function CreateUrlForm() {
               type="radio"
               name="expiryOption"
               value="date"
-              checked={expiryDate !== ""}
+              checked={!isNever}
               onChange={() => {
-                if (!expiryDate) {
-                  setExpiryDate(
-                    new Date(Date.now() + 86400000).toISOString().split("T")[0],
-                  );
-                }
+                setIsNever(false);
               }}
               className="h-4 w-4 accent-[#3c2d11]"
             />
@@ -141,14 +146,16 @@ export default function CreateUrlForm() {
                 Choose when this short URL should stop working
               </p>
 
-              {expiryDate !== "" && (
+              {!isNever && (
                 <input
                   id="expiryDate"
                   name="expiryDate"
                   type="date"
-                  value={expiryDate}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(event) => setExpiryDate(event.target.value)}
+                  value={new Date(expiryDate).toISOString().split("T")[0]}
+                  min={getDate(new Date())}
+                  onChange={(event) => {
+                    setExpiryDate(new Date(event.target.value));
+                  }}
                   className="mt-3 w-full rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400"
                 />
               )}

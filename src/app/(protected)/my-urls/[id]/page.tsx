@@ -33,9 +33,12 @@ export default function ShortUrlDetailsPage() {
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingLongUrl, setEditingLongUrl] = useState(false);
+  const [editingExpiry, setEditingExpiry] = useState(false);
+  const [isNever, setIsNever] = useState(true);
 
   const [titleDraft, setTitleDraft] = useState<string>("");
   const [longUrlDraft, setLongUrlDraft] = useState<string>("");
+  const [expiryDraft, setExpiryDraft] = useState<Date | null>(null);
 
   const [openDisableModal, setOpenDisableModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
@@ -84,7 +87,6 @@ export default function ShortUrlDetailsPage() {
   };
 
   const saveLongUrl = () => {
-    console.log(longUrlDraft);
     if (!validateUrl(longUrlDraft)) {
       toast.warning("Please enter a valid url");
       return;
@@ -113,6 +115,32 @@ export default function ShortUrlDetailsPage() {
     );
 
     setEditingLongUrl(false);
+  };
+
+  const handleSaveExpiry = async () => {
+    const dataToUpdate = {
+      expires: isNever ? null : expiryDraft,
+    };
+
+    setLoadingData(true);
+    toast.promise(
+      UrlApis.editUrlData(
+        urlDetails?.id || 0,
+        editActions.expires,
+        dataToUpdate,
+      ),
+      {
+        success: () => {
+          fetchUrlDetails();
+          return "Saving done";
+        },
+        error: "Save failed",
+        loading: "Loading in progress",
+        finally: () => setLoadingData(false),
+      },
+    );
+
+    setEditingExpiry(false);
   };
 
   const cancelLongUrlEdit = () => {
@@ -171,7 +199,6 @@ export default function ShortUrlDetailsPage() {
   };
 
   useEffect(() => {
-    console.log("Effecting");
     fetchUrlDetails();
   }, []);
 
@@ -191,9 +218,6 @@ export default function ShortUrlDetailsPage() {
 
           {/* Title */}
           <div className="mb-12">
-            {/* <p className="mb-3 text-sm font-medium uppercase tracking-[0.25em] text-gray-500">
-              URL Details
-            </p> */}
             {editingTitle ? (
               <div className="flex items-center gap-3">
                 <input
@@ -298,27 +322,6 @@ export default function ShortUrlDetailsPage() {
             </div>
 
             {/* Long URL */}
-            {/* <div className="mt-12">
-              <p className="mb-3 text-sm text-gray-500">Redirects to</p>
-
-              <div className="flex items-start justify-between gap-4">
-                <a
-                  href={urlDetails?.longUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="break-all text-base leading-7 text-gray-700 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-black"
-                >
-                  {urlDetails?.longUrl}
-                </a>
-
-                <ExternalLink
-                  size={18}
-                  className="mt-1 shrink-0 text-gray-400"
-                />
-              </div>
-            </div> */}
-
-            {/* Long URL */}
             <div className="mt-10">
               <p className="mb-3 text-lg text-gray-500">Redirects to</p>
 
@@ -381,25 +384,7 @@ export default function ShortUrlDetailsPage() {
             </div>
 
             {/* Meta */}
-            <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-gray-500">
-              <span>
-                Created{" "}
-                <strong className="font-medium text-gray-700">
-                  {getDate(urlDetails?.createdAt)}
-                </strong>
-              </span>
-
-              <span className="hidden h-1 w-1 rounded-full bg-gray-400 sm:block" />
-
-              <span>
-                Expires on{" "}
-                <strong className="font-medium text-gray-700">
-                  {getDate(urlDetails?.expiresAt)}
-                </strong>
-              </span>
-
-              <span className="hidden h-1 w-1 rounded-full bg-gray-400 sm:block" />
-
+            <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3  text-gray-500">
               <span className="flex items-center gap-2">
                 <span
                   className={`h-2 w-2 rounded-full ${
@@ -410,6 +395,136 @@ export default function ShortUrlDetailsPage() {
                   {urlDetails?.active ? "Active" : "Disabled"}
                 </strong>
               </span>
+
+              <span className="hidden h-1 w-1 rounded-full bg-gray-400 sm:block" />
+
+              <span>
+                Created :{" "}
+                <strong className="font-semibold text-primary">
+                  {getDate(urlDetails?.createdAt)}
+                </strong>
+              </span>
+
+              <span className="hidden h-1 w-1 rounded-full bg-gray-400 sm:block" />
+
+              {/* Expiry */}
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-500">Expires on :</p>
+
+                {!editingExpiry ? (
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-primary">
+                      {urlDetails?.expiresAt
+                        ? getDate(urlDetails?.expiresAt)
+                        : "Never"}
+                    </span>
+
+                    <button
+                      onClick={() => {
+                        setExpiryDraft(
+                          urlDetails?.expiresAt
+                            ? new Date(urlDetails?.expiresAt)
+                            : new Date(new Date().getFullYear(), 11, 31),
+                        );
+                        setIsNever(urlDetails?.expiresAt ? false : true);
+                        setEditingExpiry(true);
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/60 hover:text-black"
+                      aria-label="Edit expiry"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="max-w-md rounded-xl border border-gray-300/70 bg-white/20 p-5 flex gap-4 items-center">
+                    <div>
+                      {/* Radio options */}
+                      <div className="space-y-4">
+                        <label className="flex cursor-pointer items-center gap-3 text-sm">
+                          <input
+                            type="radio"
+                            name="expiry"
+                            value="never"
+                            checked={isNever}
+                            onChange={() => setIsNever(true)}
+                            className="accent-[#3c2d11]"
+                          />
+                          Never
+                        </label>
+
+                        <label className="flex cursor-pointer items-center gap-3 text-sm">
+                          <input
+                            type="radio"
+                            name="expiry"
+                            value="date"
+                            checked={!isNever}
+                            onChange={() => setIsNever(false)}
+                            className="accent-[#3c2d11]"
+                          />
+                          Set expiry date
+                        </label>
+                      </div>
+
+                      {/* Date input */}
+                      {!isNever && (
+                        <div className="mt-5">
+                          <input
+                            id="expiry-date"
+                            type="date"
+                            value={
+                              expiryDraft
+                                ? expiryDraft?.toISOString()?.split("T")[0]
+                                : ""
+                            }
+                            min={new Date().toISOString().split("T")[0]}
+                            onChange={(e) =>
+                              setExpiryDraft(new Date(e.target.value))
+                            }
+                            className="h-11 w-full rounded-lg border border-gray-300 bg-white/40 px-3 text-sm outline-none focus:border-[#3c2d11]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveExpiry}
+                        className="rounded-full cursor-pointer bg-[#111111] px-5 py-2 text-sm font-medium text-white"
+                      >
+                        <Check size={16} />
+                      </button>
+
+                      <button
+                        onClick={() => setEditingExpiry(false)}
+                        className="rounded-full cursor-pointer border border-gray-300 px-5 py-2 text-sm font-medium hover:bg-white/50"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* <div className="border-primary/30 flex items-center gap-4 p-2 rounded-lg border ">
+                <span>
+                  Expires :{" "}
+                  <strong className="font-semibold text-primary">
+                    {urlDetails?.expiresAt
+                      ? getDate(urlDetails?.expiresAt)
+                      : "Never"}
+                  </strong>
+                </span>
+
+                <button
+                  onClick={() => {
+                    setEditingExpiry(true)
+                    setExpiryDraft()
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/60 hover:text-black"
+                  aria-label="Edit expiry date"
+                >
+                  <PenLine size={15} />
+                </button>
+              </div> */}
             </div>
           </div>
 

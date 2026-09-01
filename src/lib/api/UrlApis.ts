@@ -9,7 +9,7 @@ export default {
   }: {
     title: string;
     url: string;
-    expiryDate: string;
+    expiryDate: Date | null;
   }) => {
     return apiClient<any>("/api/url/create", {
       method: "POST",
